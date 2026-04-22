@@ -1,4 +1,4 @@
-# 🎰 The Underdog Casino — Roulette Simulator & Analytics Suite
+# The Underdog Casino — Roulette Simulator & Analytics Suite
 
 > *A full-stack roulette simulation engine with terminal UI, statistical analysis, pattern detection, and a live browser dashboard — built entirely in Python and vanilla JavaScript.*
 
