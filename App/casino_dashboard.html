@@ -1,0 +1,1067 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>The Underdog Casino — Live Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════════ BASE */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --gold: #d4af37; --gold2: #f0d060; --amber: #ffbf00;
+  --cream: #fff5c8; --felt: #060e0a; --felt2: #0b1c12;
+  --red: #dc1428; --red2: #ff2040;
+  --silver: #c0c0c0; --green: #32c864;
+  --panel: rgba(6,14,10,0.97);
+  --border: rgba(212,175,55,0.25);
+  --glow: rgba(212,175,55,0.10);
+  --font-d: 'Playfair Display', Georgia, serif;
+  --font-b: 'Crimson Pro', Georgia, serif;
+}
+html { scroll-behavior: smooth; }
+body {
+  background: var(--felt);
+  color: var(--cream);
+  font-family: var(--font-b);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+body::before {
+  content: '';
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background:
+    repeating-linear-gradient(45deg, transparent, transparent 3px,
+      rgba(0,25,12,0.06) 3px, rgba(0,25,12,0.06) 6px),
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(14,40,22,0.55) 0%, transparent 70%);
+}
+
+/* ═══════════════════════════════════════════════ HEADER */
+header {
+  position: relative; z-index: 10;
+  text-align: center;
+  padding: 2.5rem 1rem 1.6rem;
+  border-bottom: 1px solid var(--border);
+}
+header::after {
+  content: '';
+  position: absolute; bottom: -1px; left: 6%; right: 6%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+}
+.crest {
+  font-size: 1.1rem; letter-spacing: .6em; color: var(--gold);
+  margin-bottom: .5rem;
+}
+h1 {
+  font-family: var(--font-d);
+  font-size: clamp(2rem, 5vw, 3.8rem);
+  font-weight: 900;
+  background: linear-gradient(135deg, #fff6d0 0%, var(--amber) 30%, var(--gold) 55%, #8a6010 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  letter-spacing: .06em;
+  line-height: 1.1;
+}
+.tagline {
+  font-size: .82rem; letter-spacing: .3em; text-transform: uppercase;
+  color: rgba(212,175,55,.55); margin-top: .4rem;
+}
+
+/* ═══════════════════════════════════════════════ WHEEL SECTION */
+.wheel-section {
+  position: relative; z-index: 10;
+  display: flex; flex-direction: column; align-items: center;
+  padding: 2.5rem 1rem 2rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.wheel-outer-ring {
+  position: relative;
+  width: 420px; height: 420px;
+  flex-shrink: 0;
+}
+@media(max-width: 480px) { .wheel-outer-ring { width: 300px; height: 300px; } }
+.wheel-outer-ring::before {
+  content: '';
+  position: absolute; inset: -10px; border-radius: 50%;
+  background: conic-gradient(
+    var(--gold) 0deg, #8a6010 20deg, var(--gold2) 40deg, var(--gold) 60deg,
+    #8a6010 80deg, var(--gold2) 100deg, var(--gold) 120deg,
+    #8a6010 140deg, var(--gold2) 160deg, var(--gold) 180deg,
+    #8a6010 200deg, var(--gold2) 220deg, var(--gold) 240deg,
+    #8a6010 260deg, var(--gold2) 280deg, var(--gold) 300deg,
+    #8a6010 320deg, var(--gold2) 340deg, var(--gold) 360deg
+  );
+  z-index: 0;
+}
+.wheel-outer-ring::after {
+  content: '';
+  position: absolute; inset: -3px; border-radius: 50%;
+  background: var(--felt); z-index: 1;
+}
+#wheelCanvas {
+  position: absolute; inset: 0; border-radius: 50%;
+  z-index: 2; cursor: pointer;
+}
+#ballMarker { display: none; }
+
+/* ── Buttons row ── */
+.spin-controls {
+  margin-top: 1.8rem;
+  display: flex; gap: .8rem; align-items: center; flex-wrap: wrap; justify-content: center;
+}
+
+/* Gold main spin button */
+.btn-spin {
+  font-family: var(--font-d);
+  font-size: 1rem; font-weight: 700; font-style: italic;
+  letter-spacing: .1em; text-transform: uppercase;
+  padding: .85rem 2.5rem;
+  background: linear-gradient(135deg, #b8881a 0%, var(--gold) 40%, #f0d060 60%, #9a7015 100%);
+  color: #0e0800;
+  border: none; border-radius: 2px; cursor: pointer;
+  box-shadow: 0 2px 18px rgba(212,175,55,.35), inset 0 1px 0 rgba(255,255,255,.2);
+  transition: transform .12s, box-shadow .15s;
+}
+.btn-spin:hover { transform: translateY(-2px); box-shadow: 0 6px 28px rgba(212,175,55,.55); }
+.btn-spin:active { transform: translateY(0); }
+.btn-spin:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+
+/* Outline secondary buttons */
+.btn-sec {
+  font-family: var(--font-b);
+  font-size: .82rem; letter-spacing: .1em; text-transform: uppercase;
+  padding: .65rem 1.3rem;
+  background: transparent;
+  color: var(--amber);
+  border: 1px solid rgba(212,175,55,.32);
+  border-radius: 2px; cursor: pointer;
+  transition: background .2s, border-color .2s;
+  white-space: nowrap;
+}
+.btn-sec:hover, .btn-sec.active {
+  background: rgba(212,175,55,.1); border-color: var(--gold);
+}
+.btn-sec:disabled { opacity: .4; cursor: not-allowed; }
+
+/* Speed select */
+.speed-wrap {
+  font-size: .78rem; letter-spacing: .1em; text-transform: uppercase;
+  color: rgba(255,245,200,.45);
+  display: flex; align-items: center; gap: .4rem;
+}
+.speed-wrap select {
+  background: rgba(212,175,55,.07); color: var(--cream);
+  border: 1px solid var(--border); border-radius: 2px;
+  padding: .3rem .5rem; font-family: var(--font-b); font-size: .8rem;
+}
+
+/* ── Batch spin row ── */
+.batch-row {
+  margin-top: 1rem;
+  display: flex; gap: .7rem; align-items: center; flex-wrap: wrap; justify-content: center;
+}
+.batch-label {
+  font-size: .75rem; letter-spacing: .2em; text-transform: uppercase;
+  color: rgba(212,175,55,.5);
+  padding-right: .3rem;
+}
+
+/* Batch buttons get a red accent to distinguish them */
+.btn-batch {
+  font-family: var(--font-d);
+  font-size: .82rem; font-weight: 700; font-style: italic;
+  letter-spacing: .06em; text-transform: uppercase;
+  padding: .6rem 1.4rem;
+  background: linear-gradient(135deg, #6a0812 0%, #a01020 40%, #c01828 60%, #6a0812 100%);
+  color: #ffd0d0;
+  border: 1px solid rgba(220,20,40,.4); border-radius: 2px; cursor: pointer;
+  box-shadow: 0 2px 12px rgba(220,20,40,.2);
+  transition: transform .1s, box-shadow .15s;
+  position: relative; overflow: hidden;
+}
+.btn-batch:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(220,20,40,.4); }
+.btn-batch:active { transform: translateY(0); }
+.btn-batch:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+
+/* ── Progress bar for batch ── */
+.batch-progress-wrap {
+  margin-top: .8rem;
+  width: 420px; max-width: 90vw;
+  display: none;
+}
+.batch-progress-wrap.visible { display: block; }
+.batch-progress-label {
+  font-size: .75rem; letter-spacing: .12em; text-transform: uppercase;
+  color: rgba(212,175,55,.6); margin-bottom: .3rem;
+  display: flex; justify-content: space-between;
+}
+.batch-progress-track {
+  height: 6px; background: rgba(212,175,55,.1);
+  border: 1px solid rgba(212,175,55,.2); border-radius: 3px; overflow: hidden;
+}
+.batch-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--red) 0%, var(--amber) 100%);
+  width: 0%; transition: width .08s linear;
+  border-radius: 3px;
+}
+
+/* ── Result display ── */
+.result-display {
+  margin-top: 1.6rem;
+  display: flex; gap: 1.5rem; align-items: center; flex-wrap: wrap; justify-content: center;
+}
+.result-number {
+  font-family: var(--font-d);
+  font-size: 4.2rem; font-weight: 900; min-width: 5rem; text-align: center; line-height: 1;
+  text-shadow: 0 0 30px currentColor;
+  transition: all .4s;
+}
+.result-number.red   { color: var(--red2); }
+.result-number.black { color: var(--silver); }
+.result-number.zero  { color: var(--green); }
+.result-number.pop   { animation: pop .5s cubic-bezier(.34,1.56,.64,1); }
+@keyframes pop { 0%{ transform:scale(1); } 45%{ transform:scale(1.4); } 100%{ transform:scale(1); } }
+
+.result-meta { display: flex; flex-direction: column; gap: .3rem; }
+.result-label {
+  font-family: var(--font-d); font-size: 1.2rem; font-style: italic;
+  color: var(--amber); letter-spacing: .05em;
+}
+.result-pills { display: flex; gap: .35rem; flex-wrap: wrap; }
+.pill {
+  font-size: .7rem; letter-spacing: .1em; text-transform: uppercase;
+  padding: .18rem .6rem;
+  border: 1px solid rgba(212,175,55,.22); border-radius: 1rem;
+  color: rgba(255,245,200,.65); background: rgba(212,175,55,.05);
+}
+
+/* ── Stat strip ── */
+.spin-stats {
+  margin-top: 1.3rem;
+  display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center;
+}
+.ss-pill {
+  font-size: .78rem; letter-spacing: .08em; text-transform: uppercase;
+  padding: .32rem .9rem;
+  background: rgba(212,175,55,.05); border: 1px solid var(--border);
+  border-radius: 2rem; color: rgba(255,245,200,.6);
+}
+.ss-pill b { color: var(--amber); }
+
+/* ═══════════════════════════════════════════════ HISTORY STRIP */
+.history-strip {
+  position: relative; z-index: 10;
+  padding: .7rem 1.5rem;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: .4rem;
+  overflow-x: auto; background: rgba(4,10,6,.55);
+}
+.history-label {
+  font-size: .68rem; letter-spacing: .18em; text-transform: uppercase;
+  color: rgba(212,175,55,.45); white-space: nowrap; margin-right: .3rem;
+}
+.h-num {
+  font-family: var(--font-d); font-size: .82rem; font-weight: 700;
+  min-width: 27px; height: 27px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; border: 1px solid rgba(255,255,255,.08);
+  transition: transform .3s, box-shadow .3s;
+}
+.h-num.red   { background: rgba(200,16,32,.75); color: #fff; }
+.h-num.black { background: rgba(25,25,25,.9);   color: var(--silver); }
+.h-num.zero  { background: rgba(0,90,40,.8);    color: var(--green); }
+.h-num.new   { transform: scale(1.3); box-shadow: 0 0 12px currentColor; }
+
+/* Batch history note */
+.batch-history-note {
+  font-size: .68rem; letter-spacing: .1em; text-transform: uppercase;
+  color: rgba(255,100,100,.6); white-space: nowrap;
+  padding: .15rem .7rem;
+  background: rgba(220,20,40,.06);
+  border: 1px solid rgba(220,20,40,.2);
+  border-radius: 1rem; margin-left: .3rem;
+}
+
+/* ═══════════════════════════════════════════════ CHARTS GRID */
+.charts-area {
+  position: relative; z-index: 10;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+  gap: 1.4rem;
+  padding: 2rem;
+  max-width: 1640px; margin: 0 auto;
+}
+@media(max-width: 580px) { .charts-area { grid-template-columns: 1fr; padding: 1rem; } }
+.wide { grid-column: 1 / -1; }
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border); border-radius: 3px; padding: 1.6rem;
+  position: relative; overflow: hidden;
+  box-shadow: 0 4px 24px rgba(0,0,0,.55), inset 0 1px 0 rgba(212,175,55,.07);
+  transition: box-shadow .3s;
+}
+.panel:hover { box-shadow: 0 8px 40px rgba(0,0,0,.7), 0 0 28px var(--glow); }
+.panel::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+}
+.panel::after { content: '✦'; position: absolute; bottom: .5rem; right: .8rem; color: rgba(212,175,55,.12); font-size: .72rem; }
+
+.p-tag { font-size: .65rem; letter-spacing: .3em; text-transform: uppercase; color: var(--gold); margin-bottom: .2rem; }
+.p-head {
+  font-family: var(--font-d); font-size: 1.1rem; font-weight: 700;
+  color: var(--cream); margin-bottom: 1rem;
+  border-bottom: 1px solid rgba(212,175,55,.1); padding-bottom: .65rem;
+}
+canvas { width: 100% !important; }
+.chart-note { font-size: .75rem; color: rgba(255,245,200,.35); margin-top: .55rem; letter-spacing: .04em; }
+
+.srow { display: flex; gap: .7rem; flex-wrap: wrap; margin-bottom: .9rem; }
+.sbox {
+  flex: 1; min-width: 75px;
+  background: rgba(212,175,55,.05); border: 1px solid rgba(212,175,55,.12);
+  border-radius: 2px; padding: .45rem .7rem; text-align: center;
+}
+.sbox b { display: block; font-family: var(--font-d); font-size: 1.4rem; color: var(--amber); }
+.sbox span { font-size: .67rem; letter-spacing: .08em; text-transform: uppercase; color: rgba(255,245,200,.4); }
+.sbox.r b { color: #ff4060; } .sbox.bk b { color: var(--silver); } .sbox.g b { color: var(--green); }
+
+footer {
+  position: relative; z-index: 10;
+  text-align: center; padding: 1.4rem;
+  border-top: 1px solid var(--border);
+  color: rgba(212,175,55,.3); font-size: .75rem; letter-spacing: .15em;
+}
+</style>
+</head>
+<body>
+
+<!-- ══ HEADER ══════════════════════════════════════════════════════════════ -->
+<header>
+  <div class="crest">◆ ◇ ◆</div>
+  <h1>The Underdog Casino</h1>
+  <div class="tagline">Live Roulette Analytics · Beat the Odds · Est. 2025</div>
+</header>
+
+<!-- ══ WHEEL SECTION ════════════════════════════════════════════════════════ -->
+<section class="wheel-section">
+  <div class="wheel-outer-ring">
+    <canvas id="wheelCanvas" width="420" height="420"></canvas>
+    <div id="ballMarker"></div>
+  </div>
+
+  <!-- Single spin controls -->
+  <div class="spin-controls">
+    <button class="btn-spin" id="btnSpin" onclick="triggerSpin()">◆ Spin the Wheel ◆</button>
+    <button class="btn-sec" id="btnAuto" onclick="toggleAuto()">Auto Spin</button>
+    <div class="speed-wrap">
+      Speed
+      <select id="autoSpeed" onchange="updateAutoSpeed()">
+        <option value="2200">Slow</option>
+        <option value="1300" selected>Normal</option>
+        <option value="650">Fast</option>
+        <option value="220">Turbo</option>
+      </select>
+    </div>
+    <button class="btn-sec" id="btnReset" onclick="resetAll()">Reset</button>
+  </div>
+
+  <!-- Batch spin row -->
+  <div class="batch-row">
+    <span class="batch-label">Batch Run →</span>
+    <button class="btn-batch" id="btnB10k"   onclick="runBatch(10000)">10,000 Spins</button>
+    <button class="btn-batch" id="btnB50k"   onclick="runBatch(50000)">50,000 Spins</button>
+    <button class="btn-batch" id="btnB100k"  onclick="runBatch(100000)">100,000 Spins</button>
+  </div>
+
+  <!-- Progress bar (shown during batch) -->
+  <div class="batch-progress-wrap" id="batchProgress">
+    <div class="batch-progress-label">
+      <span id="batchLabel">Running batch…</span>
+      <span id="batchPct">0%</span>
+    </div>
+    <div class="batch-progress-track">
+      <div class="batch-progress-bar" id="batchBar"></div>
+    </div>
+  </div>
+
+  <!-- Last result -->
+  <div class="result-display">
+    <div class="result-number zero" id="resultNumber">—</div>
+    <div class="result-meta">
+      <div class="result-label" id="resultLabel">Awaiting first spin…</div>
+      <div class="result-pills" id="resultPills"></div>
+    </div>
+  </div>
+
+  <!-- Live stat strip -->
+  <div class="spin-stats">
+    <div class="ss-pill">Total: <b id="statTotal">0</b></div>
+    <div class="ss-pill">Red: <b id="statRed">0</b> (<b id="statRedPct">—</b>)</div>
+    <div class="ss-pill">Black: <b id="statBlack">0</b> (<b id="statBlkPct">—</b>)</div>
+    <div class="ss-pill">Zero: <b id="statZero">0</b> (<b id="statZeroPct">—</b>)</div>
+    <div class="ss-pill">Longest streak: <b id="statStreak">—</b></div>
+  </div>
+</section>
+
+<!-- ══ HISTORY STRIP ════════════════════════════════════════════════════════ -->
+<div class="history-strip" id="historyStrip">
+  <span class="history-label">Last results</span>
+</div>
+
+<!-- ══ CHARTS ══════════════════════════════════════════════════════════════ -->
+<div class="charts-area">
+
+  <div class="panel wide">
+    <div class="p-tag">Chart I</div>
+    <div class="p-head">Expected vs Actual — All 37 Numbers</div>
+    <div class="srow">
+      <div class="sbox r"><b id="cRed">0</b><span>Rouge</span></div>
+      <div class="sbox bk"><b id="cBlack">0</b><span>Noir</span></div>
+      <div class="sbox g"><b id="cZero">0</b><span>Zéro</span></div>
+      <div class="sbox"><b id="cExp">—</b><span>Exp / №</span></div>
+    </div>
+    <canvas id="chartFreq" height="130"></canvas>
+    <div class="chart-note">Gold dashed line = expected uniform count. Bars coloured by pocket.</div>
+  </div>
+
+  <div class="panel">
+    <div class="p-tag">Chart II</div>
+    <div class="p-head">Frequency Density Curve</div>
+    <canvas id="chartKde" height="200"></canvas>
+    <div class="chart-note">Gaussian KDE envelope (σ=1.5). Points coloured by pocket.</div>
+  </div>
+
+  <div class="panel">
+    <div class="p-tag">Chart III</div>
+    <div class="p-head">Colour · Parity · Dozen Split</div>
+    <canvas id="chartSplit" height="200"></canvas>
+    <div class="chart-note">Gold ✕ markers = expected values for each category.</div>
+  </div>
+
+  <div class="panel wide">
+    <div class="p-tag">Chart IV</div>
+    <div class="p-head">Running Red % — Convergence to 48.65%</div>
+    <canvas id="chartRun" height="100"></canvas>
+    <div class="chart-note">Law of large numbers — the line converges toward expected probability.</div>
+  </div>
+
+  <div class="panel">
+    <div class="p-tag">Chart V</div>
+    <div class="p-head">Streak Distribution vs Geometric Model</div>
+    <canvas id="chartStreak" height="200"></canvas>
+    <div class="chart-note">Purple bars = observed colour streaks. Gold curve = geometric expectation.</div>
+  </div>
+
+  <div class="panel">
+    <div class="p-tag">Chart VI</div>
+    <div class="p-head">Deviation Z-Scores per Number</div>
+    <canvas id="chartZ" height="200"></canvas>
+    <div class="chart-note">
+      <span style="color:#ff4060">■</span> Z&gt;2.58 &nbsp;
+      <span style="color:#ffb400">■</span> Z&gt;1.5 &nbsp;
+      <span style="color:#32c864">■</span> Normal &nbsp;
+      <span style="color:#50b4ff">■</span> Z&lt;-1.5
+    </div>
+  </div>
+
+</div>
+
+<footer>The Underdog Casino · Live Roulette Analytics · Beat the House</footer>
+
+<!-- ══════════════════════════════════════════════ JAVASCRIPT ══════════════ -->
+<script>
+'use strict';
+
+/* ── Constants ───────────────────────────────────────────────────────────── */
+const RED_NUMS  = new Set([1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36]);
+const WHEEL_ORDER = [0,32,15,19,4,21,2,25,17,34,6,27,13,36,11,30,8,23,10,5,
+                     24,16,33,1,20,14,31,9,22,18,29,7,28,12,35,3,26];
+const N = 37;
+const NUMS = Array.from({length:37},(_,i)=>i);
+const EXP_PCT = 18/37*100;
+
+function colourOf(n){ if(n===0)return'zero'; return RED_NUMS.has(n)?'red':'black'; }
+function parityOf(n){ if(n===0)return'zero'; return n%2===0?'even':'odd'; }
+function dozenOf(n) { if(n===0)return null;  if(n<=12)return'1st'; if(n<=24)return'2nd'; return'3rd'; }
+
+/* ── Application state ───────────────────────────────────────────────────── */
+const state = {
+  spins: [],
+  counts: new Array(37).fill(0),
+  reds:0, blacks:0, zeros:0,
+  streaks: [],
+  curStreakVal:null, curStreakLen:0,
+  maxStreakLen:0, maxStreakVal:null,
+  autoTimer:null,
+  spinning:false,
+  batchRunning:false,
+};
+
+/* ══════════════════════════════════════════════ WHEEL RENDERER ══════════ */
+const wCanvas = document.getElementById('wheelCanvas');
+const wCtx    = wCanvas.getContext('2d');
+let wheelAngle = 0, ballAngle = 0, animId = null;
+
+function pocketFill(n){
+  if(n===0) return '#1a7a38';
+  if(RED_NUMS.has(n)) return '#aa0e1e';
+  return '#0e0e0e';
+}
+
+function drawWheel(rot){
+  const W=wCanvas.width, cx=W/2, cy=W/2;
+  const outerR=W/2-7, innerR=outerR*0.62;
+  const numR=(outerR+innerR)/2, step=Math.PI*2/N;
+  wCtx.clearRect(0,0,W,W);
+
+  // outer gold rim
+  const rimG=wCtx.createRadialGradient(cx,cy,outerR-1,cx,cy,outerR+6);
+  rimG.addColorStop(0,'#7a5808'); rimG.addColorStop(.5,'#d4af37'); rimG.addColorStop(1,'#6a4800');
+  wCtx.beginPath(); wCtx.arc(cx,cy,outerR+5,0,Math.PI*2);
+  wCtx.fillStyle=rimG; wCtx.fill();
+
+  // pockets
+  for(let i=0;i<N;i++){
+    const sa=rot+i*step-step/2, ea=sa+step;
+    wCtx.beginPath(); wCtx.moveTo(cx,cy);
+    wCtx.arc(cx,cy,outerR,sa,ea); wCtx.closePath();
+    wCtx.fillStyle=pocketFill(WHEEL_ORDER[i]); wCtx.fill();
+    // divider
+    wCtx.beginPath();
+    wCtx.moveTo(cx+innerR*Math.cos(sa),cy+innerR*Math.sin(sa));
+    wCtx.lineTo(cx+outerR*Math.cos(sa),cy+outerR*Math.sin(sa));
+    wCtx.strokeStyle='rgba(212,175,55,0.5)'; wCtx.lineWidth=.7; wCtx.stroke();
+    // number
+    const ma=sa+step/2;
+    wCtx.save();
+    wCtx.translate(cx+numR*Math.cos(ma),cy+numR*Math.sin(ma));
+    wCtx.rotate(ma+Math.PI/2);
+    wCtx.fillStyle='#fff';
+    wCtx.font=`bold ${Math.max(8,W/52)}px 'Playfair Display',serif`;
+    wCtx.textAlign='center'; wCtx.textBaseline='middle';
+    wCtx.shadowColor='rgba(0,0,0,.9)'; wCtx.shadowBlur=3;
+    wCtx.fillText(WHEEL_ORDER[i],0,0);
+    wCtx.restore();
+  }
+
+  // inner hub
+  const hubR=innerR-2;
+  const hubG=wCtx.createRadialGradient(cx-hubR*.12,cy-hubR*.12,0,cx,cy,hubR);
+  hubG.addColorStop(0,'#281804'); hubG.addColorStop(.6,'#161004'); hubG.addColorStop(1,'#080602');
+  wCtx.beginPath(); wCtx.arc(cx,cy,hubR,0,Math.PI*2);
+  wCtx.fillStyle=hubG; wCtx.fill();
+  wCtx.strokeStyle='rgba(212,175,55,.35)'; wCtx.lineWidth=1.5; wCtx.stroke();
+  // spokes
+  for(let s=0;s<8;s++){
+    const a=Math.PI*2/8*s+rot*.12;
+    wCtx.beginPath();
+    wCtx.moveTo(cx+9*Math.cos(a),cy+9*Math.sin(a));
+    wCtx.lineTo(cx+hubR*.68*Math.cos(a),cy+hubR*.68*Math.sin(a));
+    wCtx.strokeStyle='rgba(212,175,55,.25)'; wCtx.lineWidth=.8; wCtx.stroke();
+  }
+  wCtx.beginPath(); wCtx.arc(cx,cy,9,0,Math.PI*2);
+  wCtx.fillStyle='#d4af37'; wCtx.fill();
+
+  // pointer
+  wCtx.beginPath();
+  wCtx.moveTo(W/2,3); wCtx.lineTo(W/2-10,22); wCtx.lineTo(W/2+10,22);
+  wCtx.closePath();
+  wCtx.fillStyle='#d4af37';
+  wCtx.shadowColor='rgba(212,175,55,.9)'; wCtx.shadowBlur=10;
+  wCtx.fill(); wCtx.shadowBlur=0;
+
+  // ball
+  const bR=outerR*.83;
+  const bx=cx+bR*Math.cos(ballAngle), by=cy+bR*Math.sin(ballAngle);
+  const bG=wCtx.createRadialGradient(bx-2.5,by-2.5,0,bx,by,9);
+  bG.addColorStop(0,'#ffffff'); bG.addColorStop(.5,'#d8d8d8'); bG.addColorStop(1,'#888');
+  wCtx.beginPath(); wCtx.arc(bx,by,9,0,Math.PI*2);
+  wCtx.fillStyle=bG;
+  wCtx.shadowColor='rgba(0,0,0,.7)'; wCtx.shadowBlur=7;
+  wCtx.fill(); wCtx.shadowBlur=0;
+}
+
+/* ── Spin animation ──────────────────────────────────────────────────────── */
+function spinToNumber(targetNum, onDone){
+  const pocketIdx=WHEEL_ORDER.indexOf(targetNum);
+  const targetWheelAngle=-Math.PI/2-(Math.PI*2/N)*pocketIdx-(Math.PI/N);
+  const extraTurns=8+Math.random()*4;
+  const finalWheel=wheelAngle-(wheelAngle-targetWheelAngle)%(Math.PI*2)-extraTurns*Math.PI*2;
+  const startWheel=wheelAngle, startBall=ballAngle;
+  const finalBall=startBall+(-extraTurns*Math.PI*2*1.45);
+  const dur=3000+Math.random()*900, t0=performance.now();
+
+  function ease(t){ return 1-Math.pow(1-t,4); }
+  function frame(now){
+    const t=Math.min(1,(now-t0)/dur), et=ease(t);
+    wheelAngle=startWheel+(finalWheel-startWheel)*et;
+    ballAngle =startBall +(finalBall -startBall) *et;
+    drawWheel(wheelAngle);
+    if(t<1){ animId=requestAnimationFrame(frame); }
+    else   { wheelAngle=finalWheel; drawWheel(wheelAngle); onDone(); }
+  }
+  animId=requestAnimationFrame(frame);
+}
+
+/* ── Single-spin visuals only (no data) ─────────────────────────────────── */
+function spinWheelVisualOnly(targetNum, onDone){
+  spinToNumber(targetNum, onDone);
+}
+
+/* ══════════════════════════════════════════════ CHART SETUP ═════════════ */
+Chart.defaults.color       = 'rgba(255,245,200,.52)';
+Chart.defaults.borderColor = 'rgba(212,175,55,.1)';
+Chart.defaults.font.family = "'Crimson Pro',Georgia,serif";
+Chart.defaults.font.size   = 12;
+
+const GOLD='#d4af37',AMBER='#ffbf00',CREAM='rgba(255,245,200,.82)';
+const TT={ backgroundColor:'rgba(6,14,10,.97)', borderColor:GOLD, borderWidth:1,
+           titleColor:AMBER, bodyColor:CREAM };
+
+function bColors(){ return NUMS.map(n=>n===0?'rgba(50,200,100,.82)':RED_NUMS.has(n)?'rgba(220,20,40,.82)':'rgba(155,155,155,.8)'); }
+
+const chartFreq=new Chart(document.getElementById('chartFreq'),{
+  type:'bar',
+  data:{ labels:NUMS.map(n=>n===0?'0':n),
+    datasets:[
+      {label:'Observed',data:new Array(37).fill(0),backgroundColor:bColors(),borderRadius:2,borderWidth:1},
+      {label:'Expected',data:new Array(37).fill(0),type:'line',borderColor:GOLD,borderWidth:2.5,
+       borderDash:[6,4],pointRadius:0,tension:0,fill:false,order:0}
+    ]},
+  options:{ responsive:true, animation:{duration:300},
+    plugins:{legend:{display:false},tooltip:{...TT}},
+    scales:{
+      x:{grid:{color:'rgba(212,175,55,.04)'},ticks:{font:{size:9},maxRotation:0}},
+      y:{grid:{color:'rgba(212,175,55,.06)'},beginAtZero:true}}}
+});
+
+const chartKde=new Chart(document.getElementById('chartKde'),{
+  type:'line',
+  data:{ labels:NUMS,
+    datasets:[
+      {label:'Density',data:new Array(37).fill(0),borderColor:AMBER,borderWidth:2,
+       backgroundColor:'rgba(255,191,0,.09)',fill:true,tension:.45,
+       pointRadius:3,pointBackgroundColor:bColors()},
+      {label:'Expected',data:new Array(37).fill(0),borderColor:GOLD,borderDash:[5,4],
+       borderWidth:1.5,pointRadius:0,fill:false,tension:0}
+    ]},
+  options:{ responsive:true, animation:{duration:300},
+    plugins:{legend:{display:false},tooltip:{...TT}},
+    scales:{
+      x:{grid:{color:'rgba(212,175,55,.04)'}},
+      y:{grid:{color:'rgba(212,175,55,.06)'},beginAtZero:true}}}
+});
+
+const chartSplit=new Chart(document.getElementById('chartSplit'),{
+  type:'bar',
+  data:{ labels:['Red','Black','Zero','1st Doz','2nd Doz','3rd Doz','Odd','Even'],
+    datasets:[
+      {label:'Observed',data:new Array(8).fill(0),
+       backgroundColor:['rgba(220,20,40,.8)','rgba(155,155,155,.8)','rgba(50,200,100,.8)',
+         'rgba(212,175,55,.8)','rgba(255,191,0,.8)','rgba(170,90,210,.8)',
+         'rgba(80,195,215,.8)','rgba(0,195,175,.8)'],
+       borderRadius:3,borderWidth:1},
+      {label:'Expected',data:new Array(8).fill(0),type:'line',borderColor:GOLD,
+       borderWidth:2,borderDash:[4,3],pointRadius:5,pointStyle:'crossRot',
+       pointBorderColor:GOLD,fill:false,tension:0,backgroundColor:'transparent'}
+    ]},
+  options:{ responsive:true, animation:{duration:300},
+    plugins:{legend:{display:false},tooltip:{...TT}},
+    scales:{
+      x:{grid:{color:'rgba(212,175,55,.04)'},ticks:{font:{size:10}}},
+      y:{grid:{color:'rgba(212,175,55,.06)'},beginAtZero:true}}}
+});
+
+const chartRun=new Chart(document.getElementById('chartRun'),{
+  type:'line',
+  data:{ labels:[],
+    datasets:[
+      {label:'Running Red %',data:[],borderColor:'rgba(220,20,40,.9)',borderWidth:2,
+       backgroundColor:'rgba(220,20,40,.05)',fill:true,tension:.3,pointRadius:0},
+      {label:'Expected 48.65%',data:[],borderColor:GOLD,borderWidth:1.5,
+       borderDash:[6,4],pointRadius:0,fill:false}
+    ]},
+  options:{ responsive:true, animation:{duration:180},
+    plugins:{
+      legend:{labels:{color:CREAM,boxWidth:12}},
+      tooltip:{...TT,callbacks:{label:c=>` ${c.dataset.label}: ${c.raw}%`}}},
+    scales:{
+      x:{grid:{color:'rgba(212,175,55,.04)'},ticks:{maxTicksLimit:8,font:{size:9}}},
+      y:{grid:{color:'rgba(212,175,55,.06)'},ticks:{callback:v=>v+'%'},
+         suggestedMin:30,suggestedMax:70}}}
+});
+
+const chartStreak=new Chart(document.getElementById('chartStreak'),{
+  type:'bar',
+  data:{ labels:[],
+    datasets:[
+      {label:'Observed streaks',data:[],backgroundColor:'rgba(170,90,210,.75)',
+       borderColor:'rgba(170,90,210,1)',borderWidth:1,borderRadius:3,order:1},
+      {label:'Geometric exp.',data:[],type:'line',borderColor:GOLD,borderWidth:2.5,
+       borderDash:[5,3],backgroundColor:'rgba(212,175,55,.05)',fill:true,tension:.4,
+       pointRadius:3,pointBackgroundColor:GOLD,order:0}
+    ]},
+  options:{ responsive:true, animation:{duration:300},
+    plugins:{legend:{labels:{color:CREAM,boxWidth:12}},tooltip:{...TT}},
+    scales:{
+      x:{grid:{color:'rgba(212,175,55,.04)'}},
+      y:{grid:{color:'rgba(212,175,55,.06)'},beginAtZero:true}}}
+});
+
+const chartZ=new Chart(document.getElementById('chartZ'),{
+  type:'bar',
+  data:{ labels:NUMS.map(n=>n===0?'0':n),
+    datasets:[
+      {label:'Z-score',data:new Array(37).fill(0),
+       backgroundColor:new Array(37).fill('rgba(50,200,100,.6)'),borderWidth:1,borderRadius:2},
+      {label:'+2.58σ',data:new Array(37).fill(2.58),type:'line',
+       borderColor:'rgba(255,80,80,.4)',borderWidth:1,borderDash:[4,3],pointRadius:0,fill:false},
+      {label:'−2.58σ',data:new Array(37).fill(-2.58),type:'line',
+       borderColor:'rgba(80,170,255,.4)',borderWidth:1,borderDash:[4,3],pointRadius:0,fill:false}
+    ]},
+  options:{ responsive:true, animation:{duration:300},
+    plugins:{
+      legend:{labels:{color:CREAM,boxWidth:12,filter:i=>i.text!=='Z-score'}},
+      tooltip:{...TT,callbacks:{
+        title:c=>`Number ${c[0].label}`,
+        label:c=>` Z = ${c.raw>0?'+':''}${Number(c.raw).toFixed(2)}`}}},
+    scales:{
+      x:{grid:{color:'rgba(212,175,55,.04)'},ticks:{font:{size:9}}},
+      y:{grid:{color:'rgba(212,175,55,.06)'},ticks:{callback:v=>(v>0?'+':'')+v+'σ'}}}}
+});
+
+/* ══════════════════════════════════════════════ DATA ENGINE ══════════════ */
+function recordSpin(num){
+  state.spins.push(num);
+  state.counts[num]++;
+  const c=colourOf(num);
+  if(c==='red')    state.reds++;
+  else if(c==='black') state.blacks++;
+  else              state.zeros++;
+  // streak
+  if(c===state.curStreakVal){ state.curStreakLen++; }
+  else{
+    if(state.curStreakVal!==null){
+      state.streaks.push({val:state.curStreakVal,len:state.curStreakLen});
+      if(state.curStreakLen>state.maxStreakLen){ state.maxStreakLen=state.curStreakLen; state.maxStreakVal=state.curStreakVal; }
+    }
+    state.curStreakVal=c; state.curStreakLen=1;
+  }
+}
+
+function batchRecord(nums){
+  // Fast bulk insert — no DOM, just state
+  for(let i=0;i<nums.length;i++) recordSpin(nums[i]);
+}
+
+function updateAllCharts(){
+  const n=state.spins.length;
+  if(n===0) return;
+  const exp=n/37;
+  const sigma=Math.sqrt(n*(1/37)*(36/37))||1;
+  const expFlat=new Array(37).fill(parseFloat(exp.toFixed(2)));
+
+  // Chart I
+  chartFreq.data.datasets[0].data=[...state.counts];
+  chartFreq.data.datasets[1].data=expFlat;
+  chartFreq.update();
+
+  // Chart II — KDE (throttled)
+  if(n<=500||n%Math.max(1,Math.floor(n/200))===0){
+    const sm=NUMS.map(xi=>{
+      let v=0;
+      for(let xj=0;xj<37;xj++) v+=state.counts[xj]*Math.exp(-0.5*((xi-xj)/1.5)**2);
+      return parseFloat((v/Math.sqrt(2*Math.PI*2.25)).toFixed(2));
+    });
+    const smax=Math.max(...sm,1), mobs=Math.max(...state.counts,1);
+    chartKde.data.datasets[0].data=sm.map(v=>parseFloat((v/smax*mobs).toFixed(2)));
+    chartKde.data.datasets[1].data=expFlat;
+    chartKde.update();
+  }
+
+  // Chart III
+  const nz=n-state.zeros;
+  let d1=0,d2=0,d3=0,odd=0,even=0;
+  for(let i=1;i<=36;i++){
+    if(i<=12)d1+=state.counts[i]; else if(i<=24)d2+=state.counts[i]; else d3+=state.counts[i];
+    if(i%2===1)odd+=state.counts[i]; else even+=state.counts[i];
+  }
+  const dExp=parseFloat((nz*12/36).toFixed(1)), pExp=parseFloat((nz*.5).toFixed(1));
+  chartSplit.data.datasets[0].data=[state.reds,state.blacks,state.zeros,d1,d2,d3,odd,even];
+  chartSplit.data.datasets[1].data=[Math.round(n*18/37),Math.round(n*18/37),Math.round(n/37),dExp,dExp,dExp,pExp,pExp];
+  chartSplit.update();
+
+  // Chart IV — running red
+  const step=Math.max(1,Math.floor(n/200));
+  const rL=[],rR=[],rE=[];
+  let rc=0;
+  for(let i=0;i<n;i++){
+    if(RED_NUMS.has(state.spins[i]))rc++;
+    if((i+1)%step===0||i===n-1){
+      rL.push(i+1); rR.push(parseFloat(((rc/(i+1))*100).toFixed(2)));
+      rE.push(parseFloat((EXP_PCT).toFixed(2)));
+    }
+  }
+  chartRun.data.labels=rL; chartRun.data.datasets[0].data=rR; chartRun.data.datasets[1].data=rE;
+  chartRun.update();
+
+  // Chart V — streaks
+  const all=[...state.streaks];
+  if(state.curStreakLen>0)all.push({val:state.curStreakVal,len:state.curStreakLen});
+  const clens=all.map(s=>s.len);
+  const maxSL=Math.min(Math.max(...clens,1),20);
+  const sc={};
+  for(const l of clens)sc[l]=(sc[l]||0)+1;
+  const sL=Array.from({length:maxSL},(_,i)=>i+1);
+  const sO=sL.map(k=>sc[k]||0);
+  const tot=clens.length||1,pc=18/37,pb=1-pc;
+  const sG=sL.map(k=>parseFloat((tot*pb*(pc**(k-1))).toFixed(2)));
+  chartStreak.data.labels=sL.map(l=>l+'x');
+  chartStreak.data.datasets[0].data=sO; chartStreak.data.datasets[1].data=sG;
+  chartStreak.update();
+
+  // Chart VI — z-scores
+  const zd=state.counts.map(c=>parseFloat(((c-exp)/sigma).toFixed(2)));
+  const zC=zd.map(z=>z>2.58?'rgba(255,80,80,.85)':z>1.5?'rgba(255,175,0,.85)':
+                      z<-2.58?'rgba(80,170,255,.85)':z<-1.5?'rgba(80,215,215,.7)':'rgba(50,200,100,.62)');
+  chartZ.data.datasets[0].data=zd; chartZ.data.datasets[0].backgroundColor=zC;
+  chartZ.data.datasets[0].borderColor=zC; chartZ.update();
+
+  // Stat DOM
+  const pct=v=>n>0?(v/n*100).toFixed(1)+'%':'—';
+  document.getElementById('statTotal').textContent=n.toLocaleString();
+  document.getElementById('statRed').textContent=state.reds.toLocaleString();
+  document.getElementById('statRedPct').textContent=pct(state.reds);
+  document.getElementById('statBlack').textContent=state.blacks.toLocaleString();
+  document.getElementById('statBlkPct').textContent=pct(state.blacks);
+  document.getElementById('statZero').textContent=state.zeros.toLocaleString();
+  document.getElementById('statZeroPct').textContent=pct(state.zeros);
+  document.getElementById('statStreak').textContent=
+    state.maxStreakLen>0?`${state.maxStreakVal} ×${state.maxStreakLen}`:'—';
+  document.getElementById('cRed').textContent=state.reds.toLocaleString();
+  document.getElementById('cBlack').textContent=state.blacks.toLocaleString();
+  document.getElementById('cZero').textContent=state.zeros.toLocaleString();
+  document.getElementById('cExp').textContent=exp.toFixed(1);
+}
+
+/* ══════════════════════════════════════════════ RESULT UI ═══════════════ */
+function updateResultDisplay(num, isBatch, batchCount){
+  const col=colourOf(num);
+  const el=document.getElementById('resultNumber');
+  el.className=`result-number ${col}`;
+  el.textContent=num;
+  el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop');
+
+  if(isBatch){
+    document.getElementById('resultLabel').textContent=
+      `Batch complete · ${batchCount.toLocaleString()} spins · last: ${num}`;
+  } else {
+    const colLabel=col==='red'?'Rouge':col==='black'?'Noir':'Zéro';
+    document.getElementById('resultLabel').textContent=`${num} · ${colLabel}`;
+    const pills=[];
+    if(num!==0){ pills.push(parityOf(num)); pills.push(dozenOf(num)+' dozen');
+                 pills.push(num<=18?'Low 1–18':'High 19–36'); }
+    document.getElementById('resultPills').innerHTML=
+      pills.map(p=>`<span class="pill">${p}</span>`).join('');
+  }
+}
+
+function addHistoryChip(num, isBatch){
+  const strip=document.getElementById('historyStrip');
+  const existing=strip.querySelectorAll('.h-num');
+  existing.forEach(e=>e.classList.remove('new'));
+  if(isBatch){
+    // For batch: show a special compact summary chip
+    const old=strip.querySelectorAll('.batch-history-note');
+    old.forEach(e=>e.remove());
+    const note=document.createElement('span');
+    note.className='batch-history-note';
+    note.textContent=`+${document.querySelector('#'+('btnB'+{10000:'10k',50000:'50k',100000:'100k'}[batchRunning]||''))||'batch'}`;
+    strip.appendChild(note);
+    return;
+  }
+  if(existing.length>=30) strip.removeChild(existing[existing.length>=30?0:0]);
+  const chip=document.createElement('div');
+  chip.className=`h-num ${colourOf(num)} new`;
+  chip.textContent=num;
+  strip.appendChild(chip);
+  strip.scrollLeft=strip.scrollWidth;
+  setTimeout(()=>chip.classList.remove('new'),600);
+}
+
+/* ══════════════════════════════════════════════ SINGLE SPIN ══════════════ */
+function triggerSpin(){
+  if(state.spinning||state.batchRunning) return;
+  state.spinning=true;
+  lockButtons(true);
+  const result=Math.floor(Math.random()*37);
+  spinToNumber(result, ()=>{
+    recordSpin(result);
+    updateResultDisplay(result, false, 0);
+    addHistoryChip(result, false);
+    updateAllCharts();
+    state.spinning=false;
+    lockButtons(false);
+  });
+}
+
+/* ══════════════════════════════════════════════ AUTO SPIN ════════════════ */
+let autoActive=false;
+function toggleAuto(){
+  if(state.batchRunning) return;
+  autoActive=!autoActive;
+  const btn=document.getElementById('btnAuto');
+  btn.classList.toggle('active',autoActive);
+  btn.textContent=autoActive?'Stop Auto':'Auto Spin';
+  if(autoActive) scheduleAuto();
+  else if(state.autoTimer){ clearTimeout(state.autoTimer); state.autoTimer=null; }
+}
+function scheduleAuto(){
+  if(!autoActive) return;
+  const spd=parseInt(document.getElementById('autoSpeed').value);
+  state.autoTimer=setTimeout(()=>{
+    if(!state.spinning&&autoActive){
+      triggerSpin();
+      const w=setInterval(()=>{ if(!state.spinning){ clearInterval(w); scheduleAuto(); }},80);
+    }
+  },spd);
+}
+function updateAutoSpeed(){
+  if(autoActive){ if(state.autoTimer)clearTimeout(state.autoTimer); scheduleAuto(); }
+}
+
+/* ══════════════════════════════════════════════ BATCH SPIN ═══════════════ */
+let batchRunning = 0;
+
+function runBatch(count){
+  if(state.spinning||state.batchRunning) return;
+  // Stop auto if running
+  if(autoActive) toggleAuto();
+
+  batchRunning=count;
+  state.batchRunning=true;
+  lockButtons(true);
+
+  // Show progress bar
+  const prog=document.getElementById('batchProgress');
+  const bar=document.getElementById('batchBar');
+  const lbl=document.getElementById('batchLabel');
+  const pctEl=document.getElementById('batchPct');
+  prog.classList.add('visible');
+  bar.style.width='0%';
+  lbl.textContent=`Running ${count.toLocaleString()} spins…`;
+  pctEl.textContent='0%';
+
+  // Pick the FINAL landing number for the one visual spin
+  const finalNum=Math.floor(Math.random()*37);
+
+  // Generate ALL random numbers upfront (fast, O(n))
+  const allNums=new Array(count);
+  for(let i=0;i<count;i++) allNums[i]=Math.floor(Math.random()*37);
+  // Ensure last one matches what we show on wheel
+  allNums[count-1]=finalNum;
+
+  // Run the visual wheel spin (single animation)
+  spinToNumber(finalNum, ()=>{
+    // Wheel animation done — now process data in chunks so progress bar updates
+    const CHUNK=5000;
+    let processed=0;
+
+    function processChunk(){
+      const end=Math.min(processed+CHUNK, count);
+      // Record chunk
+      for(let i=processed;i<end;i++) recordSpin(allNums[i]);
+      processed=end;
+      const pct=processed/count*100;
+      bar.style.width=pct.toFixed(1)+'%';
+      pctEl.textContent=Math.round(pct)+'%';
+      lbl.textContent=`Processing… ${processed.toLocaleString()} / ${count.toLocaleString()}`;
+
+      if(processed<count){
+        requestAnimationFrame(processChunk);
+      } else {
+        // Done — update all charts once
+        updateAllCharts();
+        updateResultDisplay(finalNum, true, count);
+
+        // Update history strip with a batch note
+        const strip=document.getElementById('historyStrip');
+        const old=strip.querySelectorAll('.batch-history-note');
+        old.forEach(e=>e.remove());
+        const note=document.createElement('span');
+        note.className='batch-history-note';
+        note.textContent=`✦ Batch: +${count.toLocaleString()} spins`;
+        strip.appendChild(note);
+        strip.scrollLeft=strip.scrollWidth;
+
+        // Cleanup
+        prog.classList.remove('visible');
+        state.batchRunning=false;
+        batchRunning=0;
+        lockButtons(false);
+      }
+    }
+
+    requestAnimationFrame(processChunk);
+  });
+}
+
+/* ══════════════════════════════════════════════ RESET ════════════════════ */
+function resetAll(){
+  if(state.spinning||state.batchRunning) return;
+  if(autoActive) toggleAuto();
+  state.spins=[];
+  state.counts=new Array(37).fill(0);
+  state.reds=state.blacks=state.zeros=0;
+  state.streaks=[]; state.curStreakVal=null; state.curStreakLen=0;
+  state.maxStreakLen=0; state.maxStreakVal=null;
+
+  document.getElementById('resultNumber').textContent='—';
+  document.getElementById('resultNumber').className='result-number zero';
+  document.getElementById('resultLabel').textContent='Awaiting first spin…';
+  document.getElementById('resultPills').innerHTML='';
+  ['statTotal','statRed','statRedPct','statBlack','statBlkPct',
+   'statZero','statZeroPct','statStreak','cRed','cBlack','cZero'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.textContent=id.includes('Pct')||id==='statStreak'?'—':'0';
+  });
+  document.getElementById('cExp').textContent='—';
+
+  // Clear history strip
+  const strip=document.getElementById('historyStrip');
+  strip.querySelectorAll('.h-num,.batch-history-note').forEach(e=>e.remove());
+
+  // Reset charts
+  const zero37=new Array(37).fill(0);
+  chartFreq.data.datasets[0].data=[...zero37];
+  chartFreq.data.datasets[1].data=[...zero37]; chartFreq.update();
+  chartKde.data.datasets[0].data=[...zero37];
+  chartKde.data.datasets[1].data=[...zero37]; chartKde.update();
+  chartSplit.data.datasets[0].data=new Array(8).fill(0);
+  chartSplit.data.datasets[1].data=new Array(8).fill(0); chartSplit.update();
+  chartRun.data.labels=[]; chartRun.data.datasets[0].data=[]; chartRun.data.datasets[1].data=[]; chartRun.update();
+  chartStreak.data.labels=[]; chartStreak.data.datasets[0].data=[]; chartStreak.data.datasets[1].data=[]; chartStreak.update();
+  chartZ.data.datasets[0].data=[...zero37]; chartZ.data.datasets[0].backgroundColor=new Array(37).fill('rgba(50,200,100,.6)'); chartZ.update();
+
+  drawWheel(0); wheelAngle=0; ballAngle=0;
+}
+
+/* ── Lock/unlock all spin buttons ───────────────────────────────────────── */
+function lockButtons(lock){
+  ['btnSpin','btnAuto','btnB10k','btnB50k','btnB100k','btnReset']
+    .forEach(id=>{ const el=document.getElementById(id); if(el) el.disabled=lock; });
+}
+
+/* ── Click wheel canvas to spin ─────────────────────────────────────────── */
+wCanvas.addEventListener('click',()=>{ if(!state.spinning&&!state.batchRunning) triggerSpin(); });
+
+/* ── Initial draw ────────────────────────────────────────────────────────── */
+drawWheel(0);
+</script>
+</body>
+</html>
